@@ -7,11 +7,24 @@ module Board(
 	input clk,
 	output [x:0] board); //TODO: replace x
 	
-
+	wire ld_board;
+	
+	datapath d0(
+	.ld_board(ld_board),
+	.clk(clk),
+	.reset(reset),
+	.board(board));
+	
+	control c0(
+	.start(start),
+	.reset(reset),
+	.clk(clk),
+	.ld_board(ld_board));
+	
 endmodule
 
 //Generates a pseudo-random board using a linear-feedback shift register (LFSR)
-//Code for pseudo-random counter from: http://www.asic-world.com/examples/verilog/lfsr.html
+//Logic for pseudo-random counter from: http://www.asic-world.com/examples/verilog/lfsr.html
 module BoardGenerator(
 	input enable,
 	input clk,
@@ -21,7 +34,7 @@ module BoardGenerator(
 	input data[x:0];
 	wire linear_feedback;
 	
-	assign linear_feedback = !(out[7] ^ out[3]);
+	assign linear_feedback = !(out[7] ^ out[3]); //TODO: fix this part
 	
 	always (@posedge clk) begin
 		if (!reset) 
@@ -37,7 +50,6 @@ module control(
 	input start,
 	input reset,
 	input clk,
-	output enable,
 	output reg ld_board);
 	
 	reg [1:0] current_state, next_state;
@@ -51,6 +63,9 @@ module control(
 				case(current_state)
 					S_GENERATE: next_state = start ? S_GENERATE_WAIT : S_GENERATE;
 					S_GENERATE_WAIT: next_state = start ? S_GENERATE_WAIT : S_PLAY;
+					S_PLAY: next_state = S_PLAY;
+					default: next_state = S_GENERATE;
+	end
 	
 	always @(*)
 	begin: enable_signals
@@ -61,12 +76,19 @@ module control(
 			default: ld_board = 1'b0;
 	end
 	
+	always @(posedge clk) 
+	begin: state_FFs
+		if (!reset)
+			current_state <= S_GENERATE;
+		else
+			current_state <= next_state;
+	end
+	
 endmodule
 
 module datapath(
 	input ld_board,
 	input clk,
-	input [x:0] guess, //TODO: replace x
 	input reset,
 	output reg [x:0] board); //TODO: replace x
 	
@@ -80,7 +102,7 @@ module datapath(
 		
 	always @(posedge clk) begin
 		if (!reset) 
-			board = x'b0;
+			board <= x'b0;
 		else begin
 			if (ld_board)
 				board <= load_board;
@@ -88,4 +110,3 @@ module datapath(
 	end
 	
 endmodule
-
