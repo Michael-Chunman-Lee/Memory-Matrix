@@ -1,4 +1,5 @@
 //TODO: (for next milestone) Create FSM to control when to check guesses remaining and when to check for correct guesses
+//TODO: Make enclosure for check guess to test milestone and make enclosure in board file to display the board currently on the leds
 
 // Main module for the memory matrix game
 module MemoryMatrix(
