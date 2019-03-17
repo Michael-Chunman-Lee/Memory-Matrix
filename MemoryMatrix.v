@@ -48,7 +48,7 @@ module CheckGuess(
 	always @(posedge clk) begin
 		if (!reset)
 			iscorrect <= 1'b0;
-		else if (enable
+		else if (enable)
 			iscorrect <= ((guess & board) > 0) ? 1'b1 : 1'b0;
 	end
 	
