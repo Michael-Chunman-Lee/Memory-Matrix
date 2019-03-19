@@ -37,10 +37,10 @@ module BoardGenerator(
 	
 	always (@posedge clk) begin
 		if (!reset) 
-			out <= x'b0;
+			out <= 8'b0;
 		else if (!enable)
 			out <= {out[6], out[5], out[4], out[3], out[2], out[1], out[0], linear_feedback};
-	end
+	en
 	
 endmodule
 
