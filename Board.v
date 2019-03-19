@@ -1,4 +1,3 @@
-//TODO: Replace all values of 'x' with the appropriate size of the board
 
 // Board interface
 module Board(
@@ -53,9 +52,9 @@ module control(
 	
 	reg [1:0] current_state, next_state;
 	
-	localparam  S_GENERATE =      2'b0,
-				   S_GENERATE_WAIT = 2'b1,
-					S_PLAY =          2'b2;
+	localparam  S_GENERATE =      2'd0,
+				   S_GENERATE_WAIT = 2'd1,
+					S_PLAY =          2'd2;
 	
 	always @(*)
 	begin: state_table
