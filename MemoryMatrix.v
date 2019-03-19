@@ -1,7 +1,6 @@
 //TODO: (for next milestone) Create FSM to control when to check guesses remaining and when to check 
 //	for correct guesses
-//TODO: Make enclosure for check guess to test milestone and make enclosure in board file to display the 
-//	board currently on the leds
+//TODO: Determine which pins are to be used for the GPIO inputs
 
 // Main module for the memory matrix game
 module MemoryMatrix1(
@@ -13,7 +12,7 @@ module MemoryMatrix1(
 	assign resetn = KEY[0];
 	assign start = ~KEY[1];
 	
-	wire [x:0] board; //TODO: determine size of board
+	wire [7:0] board; 
 	
 	Board b0(
 	.start(start),
@@ -24,11 +23,11 @@ module MemoryMatrix1(
 endmodule
 
 module GuessRemaining(
-	input [x:0] input_guesses,
+	input [7:0] input_guesses,
 	input clk,
 	input reset,
 	input enable,
-	output reg [x:0] remaining_guesses);	//TODO: determine number of guesses
+	output reg [7:0] remaining_guesses);	
 	
 	always @(posedge clk) begin
 		if (!reset)
@@ -42,8 +41,8 @@ module GuessRemaining(
 endmodule
 
 module CheckGuess(
-	input [x:0] guess,
-	input [x:0] board,
+	input [7:0] guess,
+	input [7:0] board,
 	input enable,
 	input reset,
 	output reg iscorrect);
@@ -71,7 +70,7 @@ module MemoryMatrix( // augmented top-level module, for testing
 	assign resetn = KEY[0];
 	assign start = ~KEY[1];
 	
-	wire [x:0] board; //TODO: determine size of board
+	wire [7:0] board; 
 	
 	Board b0(
 	.start(start),

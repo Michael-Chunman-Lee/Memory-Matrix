@@ -5,7 +5,7 @@ module Board(
 	input start,
 	input reset,
 	input clk,
-	output [x:0] board); //TODO: replace x
+	output [7:0] board); 
 	
 	wire ld_board;
 	
@@ -29,19 +29,18 @@ module BoardGenerator(
 	input enable,
 	input clk,
 	input reset,
-	output reg [x:0] board_values); //TODO: determine board size
+	output reg [7:0] board_values); 
 	
 	input data[x:0];
 	wire linear_feedback;
 	
-	assign linear_feedback = !(out[7] ^ out[3]); //TODO: fix this part
+	assign linear_feedback = !(out[7] ^ out[3]); 
 	
 	always (@posedge clk) begin
 		if (!reset) 
 			out <= x'b0;
 		else if (!enable)
-			//TODO: Replace 'x'
-			out <= {out[x], ..., out[0], linear_feedback};
+			out <= {out[6], out[5], out[4], out[3], out[2], out[1], out[0], linear_feedback};
 	end
 	
 endmodule
@@ -90,9 +89,9 @@ module datapath(
 	input ld_board,
 	input clk,
 	input reset,
-	output reg [x:0] board); //TODO: replace x
+	output reg [7:0] board); 
 	
-	wire [x:0] randomized_board;
+	wire [7:0] randomized_board;
 	
 	BoardGenerator b0(
 		.enable(ld_board),
@@ -102,7 +101,7 @@ module datapath(
 		
 	always @(posedge clk) begin
 		if (!reset) 
-			board <= x'b0;
+			board <= 8'b0;
 		else begin
 			if (ld_board)
 				board <= load_board;
