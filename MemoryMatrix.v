@@ -64,19 +64,18 @@ module CheckGuess(
 	
 endmodule
 
-//0.5Hz RateDivider
 module RateDivider(q, Enable, Clock, reset_n);
-	input Enable, Clock, reset_n;
-	output reg [26:0] q;
+	input [25:0] load, Enable, Clock, reset_n;
+	output reg [25:0] q;
 	
 	always @(posedge Clock)
 	begin
 		if (reset_n == 1'b0)
-			q <= 27'd99999999;
+			q <= load;
 		else if (Enable == 1'b1)
 			begin
 				if (q == 0)
-					q <= 27'd99999999;
+					q <= load;
 				else
 					q <= q - 1'b1;
 			end
@@ -84,19 +83,38 @@ module RateDivider(q, Enable, Clock, reset_n);
 	
 endmodule
 
-//Display either the full solution board or just the current correctly guessed tiles
+//Display either the full solution board, just the current correctly guessed tiles 
 module DisplayBoard(
 	input full_enable,
+	input flash_enable,
+	input clk,
+	input reset,
 	input [7:0] solution_board,
 	input [7:0] current_board,
 	output reg [7:0] board_led);
-		
-	always @(*)
+	
+	RateDivider r0(
+	.q(flash_counter),
+	.load({2'd0, 24'd12499999}),
+	.Enable(flash_enable),
+	.Clock(clk),
+	.reset_n(reset));
+	
+	wire [26:0] flash_counter;
+	wire flash;
+	assign flash = (flash_counter == 0) ? 1'b1 : 1'b0;
+	
+	always @(posedge clk)
 	begin
 		if (full_enable)
 			board_led <= solution_board;
-		else
-			board_led <= current_board;
+		else begin
+			if (flash_enable) 
+				//Currently will flash board_led[8] for when we add the extra led
+				{board_led[7:0], board_led[8]} <= {current_board, flash} 
+			else 
+				board_led <= current_board;
+		end
 	end
 	
 endmodule
@@ -107,29 +125,33 @@ module control(
 	input reset,
 	input clk,
 	input is_correct,
-	input ld_play, ld_start, ld_display,
-	input [x:0] input_guesses,
-	input board_moved); //I.E ({....} & 7'b1) > 0 ? 1'b1 : 1'b0 where .... is the button input
+	input [7:0] input_guesses,
+	input board_moved, //I.E ({....} & 7'b1) > 0 ? 1'b1 : 1'b0 where .... is the button input
+	output ld_play, ld_start, ld_display, ld_flash); 
 	
-	reg [2:0] current_state, next_state;
+	reg [3:0] current_state, next_state;
 	
-	wire [26:0] wait_enable;
+	wire [25:0] wait_enable;
 	wire display_enable;
+	//TODO: determine maximum number of guesses
 	wire [x:0] num_guesses;
 	wire is_solved;
 	
-	localparam  S_START        = 3'd0,
-					S_START_WAIT   = 3'd1,
-					S_DISPLAY      = 3'd2,
-					S_PLAY         = 3'd4,
-					S_CHECK_LOSE   = 3'd5,
-					S_CHECK_WIN    = 3'd6,
-					S_LOSE         = 3'd5,
-					S_WIN          = 3'd6,
-					S_WIN_WAIT     = 3'd7;
+	localparam  S_START        = 4'd0,
+					S_START_WAIT   = 4'd1,
+					S_DISPLAY      = 4'd2,
+					S_PLAY         = 4'd4,
+					S_CHECK_LOSE   = 4'd5,
+					S_CHECK_WIN    = 4'd6,
+					S_LOSE         = 4'd5,
+					S_WIN          = 4'd6,
+					S_WIN_WAIT     = 4'd7,
+					S_LOSE         = 4'd8,
+					S_LOSE_WAIT    = 4'd9;
 	
 	RateDivider r0(
 	.q(wait_enable),
+	.load(26'd49999999),
 	.Enable(display_enable),
 	.Clock(clk),
 	.reset_n(reset));
@@ -150,6 +172,8 @@ module control(
 					S_PLAY: next_state = (board_moved == 1) ? S_CHECK_LOSE : S_PLAY;
 					S_CHECK_LOSE: next_state = (num_guesses == 0) ? S_LOSE : S_CHECK_WIN;
 					S_CHECK_WIN: next_state = (is_solved == 1) ? S_WIN : S_PLAY;
+					S_LOSE: next_state = start ? S_LOSE_WAIT : S_LOSE;
+					S_LOSE_WAIT: next_state = start ? S_LOSE_WAIT : S_LOSE;
 					S_WIN: next_state = start ? S_WIN_WAIT : S_WIN;
 					S_WIN_WAIT: next_state = start ? S_WIN_WAIT : S_START;
 				endcase
@@ -161,10 +185,19 @@ module control(
 		ld_start = 1'b0;
 		ld_display = 1'b0;
 		ld_play = 1'b0;
+		ld_flash = 1'b0;
 		case(current_state)
 			S_START: begin
 				ld_start = 1'b1;
+				ld_flash = 1'b1;
+			end
+			
 			//ADD REMAINING SIGNALS FOR CASES
+			
+			S_LOSE: begin
+				//...Add remaining signals
+				ld_flash = 1'b1;
+			end
 		endcase
 	end
 	
