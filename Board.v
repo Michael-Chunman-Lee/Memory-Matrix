@@ -25,7 +25,7 @@ module Board(
 endmodule
 
 //Generates a pseudo-random board using a linear-feedback shift register (LFSR)
-//Logic for pseudo-random counter from: http://www.asic-world.com/examples/verilog/lfsr.html
+//Logic for pseudo-random counter from: http://www.doe.carleton.ca/~jknight/97.478/97.478_03F/Advdig5cirJ.pdf
 module BoardGenerator(
 	input enable,
 	input clk,
