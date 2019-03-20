@@ -1,6 +1,7 @@
 //TODO: (for next milestone) Create FSM to control when to check guesses remaining and when to check 
 //	for correct guesses
 //TODO: Determine which pins are to be used for the GPIO inputs
+//TODO: in play state utilize board_moved to decide when to update the board, etc...
 
 // Main module for the memory matrix game
 module MemoryMatrix1(
@@ -126,7 +127,7 @@ module control(
 	input clk,
 	input is_correct,
 	input [7:0] input_guesses,
-	input board_moved, //I.E ({....} & 7'b1) > 0 ? 1'b1 : 1'b0 where .... is the button input
+	input board_moved, //I.E ({....} & 8'b11111111) == 1 ? 1'b1 : 1'b0 where .... is the button input
 	output ld_play, ld_start, ld_display, ld_flash); 
 	
 	reg [3:0] current_state, next_state;
