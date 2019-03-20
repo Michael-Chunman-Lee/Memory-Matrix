@@ -1,6 +1,4 @@
 //Test module for milestone 1 to demonstrate part 1
-
-// Main module for the memory matrix game
 module ProcessGuess(
 	input [9:0] SW, // for testing purposes
 	input [3:0] KEY,
@@ -16,7 +14,7 @@ module ProcessGuess(
 	
 	//Display remaining guesses on HEX0 and as input have 7 guesses total
 	GuessRemaining g0(
-	.input_guesses(8'b7),
+	.input_guesses(8'd7),
 	.clk(CLOCK_50),
 	.reset(reset),
 	.enable(guess),
@@ -29,7 +27,7 @@ module ProcessGuess(
 	.enable(enable),
 	.reset(reset),
 	.iscorrect(LEDR[0]),
-	.current_guess(LEDR[7:1]));
+	.current_guess({1'b0, LEDR[7:1]}));
 	
 endmodule
 
