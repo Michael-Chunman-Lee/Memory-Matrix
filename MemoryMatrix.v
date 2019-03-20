@@ -22,6 +22,7 @@ module MemoryMatrix1(
 	
 endmodule
 
+// Module for keeping track of a remaining_guesses register and updating it as the player guesses
 module GuessRemaining(
 	input [7:0] input_guesses,
 	input clk,
@@ -40,18 +41,23 @@ module GuessRemaining(
 	
 endmodule
 
+//Module for checking if an inputted guess was valid or not
 module CheckGuess(
 	input [7:0] guess,
 	input [7:0] board,
 	input enable,
 	input reset,
-	output reg iscorrect);
+	output reg iscorrect,
+	output reg [7:0] current_guess);
 	
 	always @(posedge clk) begin
 		if (!reset)
 			iscorrect <= 1'b0;
+			current_guess <= 8'b0;
 		else if (enable)
 			iscorrect <= ((guess & board) > 0) ? 1'b1 : 1'b0;
+			//Not sure if you can do this
+			current_guess <= ((guess & board) > 0) ? guess : current_guess;
 	end
 	
 endmodule
@@ -76,8 +82,21 @@ module RateDivider(q, Enable, Clock, reset_n);
 	
 endmodule
 
-module DisplayBoard();
-
+//Display either the full solution board or just the current correctly guessed tiles
+module DisplayBoard(
+	input full_enable,
+	input [7:0] solution_board,
+	input [7:0] current_board,
+	output reg [7:0] board_led);
+		
+	always @(*)
+	begin
+		if (full_enable)
+			board_led <= solution_board;
+		else
+			board_led <= current_board;
+	end
+	
 endmodule
 
 //TODO: Add other input/output as required
@@ -86,15 +105,17 @@ module control(
 	input reset,
 	input clk,
 	input is_correct,
+	input ld_play, ld_start, ld_display,
 	input [x:0] input_guesses,
-	);
+	input board_moved); //I.E ({....} & 7'b1) > 0;
 	
 	reg [2:0] current_state, next_state;
 	
 	wire [26:0] wait_enable;
 	wire display_enable;
 	wire [x:0] num_guesses;
-
+	wire is_solved;
+	
 	localparam  S_START        = 3'd0,
 					S_START_WAIT   = 3'd1,
 					S_DISPLAY      = 3'd2,
@@ -126,14 +147,20 @@ module control(
 					S_DISPLAY: next_state = (wait_enable == 0) ? S_PLAY : S_DISPLAY;
 					S_PLAY: next_state = (board_moved == 1) ? S_CHECK_LOSE : S_PLAY;
 					S_CHECK_LOSE: next_state = (num_guesses == 0) ? S_LOSE : S_CHECK_WIN;
-					S_CHECK_WIN: next_state = (issolved == 1) ? S_WIN : S_PLAY;
+					S_CHECK_WIN: next_state = (is_solved == 1) ? S_WIN : S_PLAY;
 					S_WIN: next_state = start ? S_WIN_WAIT : S_WIN;
 					S_WIN_WAIT: next_state = start ? S_WIN_WAIT : S_START;
 	end
 	
+	//TODO: complete remaining enable signals for the states
 	always @(*)
 	begin: enable_signals
+		ld_start = 1'b0;
+		ld_display = 1'b0;
+		ld_play = 1'b0;
 		case(current_state)
+			S_START: begin
+				ld_start = 1'b1;
 	end
 	
 	always @(posedge clk)
@@ -144,8 +171,49 @@ module control(
 			current_state <= next_state;
 	end
 
-module MemoryMatrix( // augmented top-level module, for testing 
+endmodule
 
+module datapath(
+	input ld_display,
+	input clk,
+	input ld_play,
+	input ld_start,
+	input reset,
+	input [7:0] solution_board,
+	input [7:0] input_guesses,
+	output reg [7:0] board_led);
+	
+	reg [7:0] current_board;
+	reg [7:0] current_guess; 
+	
+	wire iscorrect;
+	
+	CheckGuess c0(
+	.guess(input_guesses),
+	.board(current_board),
+	.enable(ld_play),
+	.reset(reset),
+	.iscorrect(iscorrect),
+	.current_guess(current_guess));
+	
+	DisplayBoard d0(
+	.full_enable(ld_display),
+	.solution_board(solution_board),
+	.current_board(current_board),
+	.board_led(board_led));
+	
+	always @(posedge clk) begin
+		if (!reset || ld_start)
+			current_board <= 0;
+		else begin
+			 if (ld_play)
+				board_led <= board_led || current_guess;
+		end
+	end
+
+endmodule
+
+module MemoryMatrix( // augmented top-level module, for testing 
 	input [9:0] SW,
 	input [3:0] KEY,
 	input CLOCK_50,
@@ -188,8 +256,6 @@ module MemoryMatrix( // augmented top-level module, for testing
 		.reset(resetn),
 		.iscorrect(ic)
 		);
-		
-		
 	
 endmodule
 
