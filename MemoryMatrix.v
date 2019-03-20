@@ -47,17 +47,19 @@ module CheckGuess(
 	input [7:0] board,
 	input enable,
 	input reset,
+	input clk,
 	output reg iscorrect,
 	output reg [7:0] current_guess);
 	
 	always @(posedge clk) begin
-		if (!reset)
+		if (!reset) begin
 			iscorrect <= 1'b0;
-			current_guess <= 8'b0;
-		else if (enable)
+			current_guess <= 8'd0;
+		end
+		else if (enable) begin
 			iscorrect <= ((guess & board) > 0) ? 1'b1 : 1'b0;
-			//Not sure if you can do this
-			current_guess <= ((guess & board) > 0) ? guess : current_guess;
+			current_guess <= ((guess & board) > 0) ? guess : 8'd0;
+		end
 	end
 	
 endmodule

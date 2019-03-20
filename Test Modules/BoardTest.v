@@ -5,46 +5,44 @@ module BoardTest(
 	input CLOCK_50,
 	output [9:0] LEDR);
 	
-	wire [7:0] board
-	wire ld_board;
+	wire [7:0] board;
+	wire ld_board, non_zero;
 	wire start, reset;
 	assign start = ~KEY[1];
 	assign reset = KEY[0];
 	
 	datapath d0(
 	.ld_board(ld_board),
-	.clk(clk),
+	.clk(CLOCK_50),
 	.reset(reset),
+	.non_zero(non_zero),
 	.board(board));
 	
 	control c0(
 	.start(start),
 	.reset(reset),
-	.clk(clk),
+	.non_zero(non_zero),
+	.clk(CLOCK_50),
 	.ld_board(ld_board));
 	
 	assign LEDR[7:0] = board;
+	assign LEDR[8] = ld_board;
 endmodule
 
 //Generates a pseudo-random board using a linear-feedback shift register (LFSR)
-//Logic for pseudo-random counter from: http://www.asic-world.com/examples/verilog/lfsr.html
+//Logic for pseudo-random counter from: http://www.doe.carleton.ca/~jknight/97.478/97.478_03F/Advdig5cirJ.pdf
 module BoardGenerator(
 	input enable,
 	input clk,
 	input reset,
-	output reg [7:0] board_values); 
-	
-	input data[x:0];
-	wire linear_feedback;
-	
-	assign linear_feedback = !(out[7] ^ out[3]); 
-	
-	always (@posedge clk) begin
+	output reg [7:0] out); 
+		
+	always @(posedge clk) begin
 		if (!reset) 
-			out <= 8'b0;
-		else if (!enable)
-			out <= {out[6], out[5], out[4], out[3], out[2], out[1], out[0], linear_feedback};
-	en
+			out <= 8'b11111111;
+		else if (enable)
+			out <= {out[6:1], out[7]^out[0], out[7]};
+	end
 	
 endmodule
 
@@ -52,21 +50,26 @@ module control(
 	input start,
 	input reset,
 	input clk,
+	input non_zero,
 	output reg ld_board);
 	
 	reg [1:0] current_state, next_state;
 	
-	localparam  S_GENERATE =      2'd0,
-				   S_GENERATE_WAIT = 2'd1,
-					S_PLAY =          2'd2;
+	
+	localparam  S_GENERATE               = 2'd0,
+				   S_GENERATE_WAIT          = 2'd1,
+					S_GENERATE_CORRECT_BOARD = 2'd2,
+					S_PLAY                   = 2'd3;
 	
 	always @(*)
 	begin: state_table
 				case(current_state)
 					S_GENERATE: next_state = start ? S_GENERATE_WAIT : S_GENERATE;
-					S_GENERATE_WAIT: next_state = start ? S_GENERATE_WAIT : S_PLAY;
+					S_GENERATE_WAIT: next_state = start ? S_GENERATE_WAIT : S_GENERATE_CORRECT_BOARD;
+					S_GENERATE_CORRECT_BOARD: next_state = non_zero ? S_PLAY : S_GENERATE_CORRECT_BOARD;
 					S_PLAY: next_state = S_PLAY;
 					default: next_state = S_GENERATE;
+				endcase
 	end
 	
 	always @(*)
@@ -76,6 +79,7 @@ module control(
 		case (current_state)
 			S_GENERATE: ld_board = 1'b1;
 			default: ld_board = 1'b0;
+		endcase
 	end
 	
 	always @(posedge clk) 
@@ -92,6 +96,7 @@ module datapath(
 	input ld_board,
 	input clk,
 	input reset,
+	output non_zero,
 	output reg [7:0] board); 
 	
 	wire [7:0] randomized_board;
@@ -100,15 +105,16 @@ module datapath(
 		.enable(ld_board),
 		.clk(clk),
 		.reset(reset),
-		.board_values(randomized_board));
+		.out(randomized_board));
 		
 	always @(posedge clk) begin
 		if (!reset) 
 			board <= 8'b0;
 		else begin
-			if (ld_board)
-				board <= load_board;
+			if (ld_board && non_zero)
+				board <= randomized_board;
 		end
 	end
 	
+	assign non_zero = (randomized_board > 0) ? 1'b1 : 1'b0;
 endmodule

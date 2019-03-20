@@ -3,10 +3,12 @@ module ProcessGuess(
 	input [9:0] SW, // for testing purposes
 	input [3:0] KEY,
 	input CLOCK_50,
-	output [3:0] HEX0,
-	output [7:0] LEDR);
+	output [6:0] HEX0,
+	output [9:0] LEDR);
 	
 	wire reset, start, guess, enable;
+	wire [7:0] remaining_guesses;
+	wire [7:0] current_guess;
 	assign reset = KEY[0];
 	assign start = ~KEY[1];
 	assign guess = ~KEY[2];
@@ -18,7 +20,7 @@ module ProcessGuess(
 	.clk(CLOCK_50),
 	.reset(reset),
 	.enable(guess),
-	.remaining_guesses({3'b0, HEX0}));
+	.remaining_guesses(remaining_guesses));
 	
 	//Display the current guess on the LEDR and input the guess through SW[9:5] and the board through SW[4:0] and process guesses upon enable press
 	CheckGuess g1(
@@ -26,9 +28,15 @@ module ProcessGuess(
 	.board({3'b0, SW[4:0]}),
 	.enable(enable),
 	.reset(reset),
+	.clk(CLOCK_50),
 	.iscorrect(LEDR[0]),
-	.current_guess({1'b0, LEDR[7:1]}));
+	.current_guess(current_guess));
 	
+	hex_decoder h0(
+	.hex_digit(remaining_guesses[3:0]),
+	.segments(HEX0));
+	
+	assign LEDR[8:1] = current_guess[7:0];
 endmodule
 
 // Module for keeping track of a remaining_guesses register and updating it as the player guesses
@@ -39,11 +47,12 @@ module GuessRemaining(
 	input enable,
 	output reg [7:0] remaining_guesses);	
 	
-	always @(posedge clk) begin
+	//FOR TESTING PURPOSES ONLY
+	always @(negedge enable) begin
 		if (!reset)
 			remaining_guesses <= input_guesses;
 		else begin
-			if (enable) 
+			if (!enable) 
 				remaining_guesses <= remaining_guesses - 1;
 		end
 	end
@@ -56,22 +65,22 @@ module CheckGuess(
 	input [7:0] board,
 	input enable,
 	input reset,
+	input clk,
 	output reg iscorrect,
 	output reg [7:0] current_guess);
 	
 	always @(posedge clk) begin
-		if (!reset)
+		if (!reset) begin
 			iscorrect <= 1'b0;
-			current_guess <= 8'b0;
-		else if (enable)
+			current_guess <= 8'd0;
+		end
+		else if (enable) begin
 			iscorrect <= ((guess & board) > 0) ? 1'b1 : 1'b0;
-			//Not sure if you can do this
-			current_guess <= ((guess & board) > 0) ? guess : current_guess;
+			current_guess <= ((guess & board) > 0) ? guess : 8'd0;
+		end
 	end
 	
 endmodule
-
-
 
 module hex_decoder(hex_digit, segments); // for testing purposes.
     input [3:0] hex_digit;
