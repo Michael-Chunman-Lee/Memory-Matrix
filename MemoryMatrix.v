@@ -109,7 +109,7 @@ module control(
 	input is_correct,
 	input ld_play, ld_start, ld_display,
 	input [x:0] input_guesses,
-	input board_moved); //I.E ({....} & 7'b1) > 0;
+	input board_moved); //I.E ({....} & 7'b1) > 0 ? 1'b1 : 1'b0 where .... is the button input
 	
 	reg [2:0] current_state, next_state;
 	
@@ -152,6 +152,7 @@ module control(
 					S_CHECK_WIN: next_state = (is_solved == 1) ? S_WIN : S_PLAY;
 					S_WIN: next_state = start ? S_WIN_WAIT : S_WIN;
 					S_WIN_WAIT: next_state = start ? S_WIN_WAIT : S_START;
+				endcase
 	end
 	
 	//TODO: complete remaining enable signals for the states
@@ -163,6 +164,8 @@ module control(
 		case(current_state)
 			S_START: begin
 				ld_start = 1'b1;
+			//ADD REMAINING SIGNALS FOR CASES
+		endcase
 	end
 	
 	always @(posedge clk)
