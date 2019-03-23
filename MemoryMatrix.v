@@ -15,11 +15,40 @@ module MemoryMatrix(
 	
 	wire [7:0] board; 
 	
+	wire is_correct;
+	
 	Board b0(
 	.start(start),
 	.reset(reset),
 	.clk(CLOCK_50),
-	.board(board));
+	.board(board)); // solution board...?
+		
+	wire ld_play, ld_start, ld_display, ld_flash;
+	
+	control c0(
+	.start(start),
+	.reset(reset),
+	.clk(CLOCK_50),
+	.is_correct(is_correct),
+	.input_guesses(SW[7:0]), // to be changed later
+	.board_moved(SW[7:0] & 8'b11111111 == 1 ? 1'b1 : 1'b0), // board_moved listener
+	.ld_play(ld_play),
+	.ld_start(ld_start),
+	.ld_display(ld_display),
+	.ld_flash(ld_flash)
+	);
+	
+	datapath d0(
+	.ld_display(ld_display),
+	.clk(CLOCK_50),
+	.ld_play(ld_play),
+	.ld-start(ld_start),
+	.reset(reset),
+	.solution_board(board), // solution board
+	.input_guesses(SW[7:0]), // to be changed later
+	.board_led(), //
+	.is_correct(is_correct)
+	);
 	
 endmodule
 
