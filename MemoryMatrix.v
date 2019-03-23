@@ -1,10 +1,10 @@
-//TODO: (for next milestone) Create FSM to control when to check guesses remaining and when to check 
-//	for correct guesses
 //TODO: Determine which pins are to be used for the GPIO inputs
-//TODO: in play state utilize board_moved to decide when to update the board, etc...
+//TODO: in play state utilize board_moved to decide when to update the board, etc... 
+//				^ should always update board, except during endgame?
+//TODO: create testing modules for milestone 2
 
 // Main module for the memory matrix game
-module MemoryMatrix1(
+module MemoryMatrix(
 	input [9:0] SW, // for testing purposes, to be removed at a later date 
 	input [3:0] KEY,
 	input CLOCK_50);
@@ -50,8 +50,8 @@ module CheckGuess(
 	input reset,
 	input clk,
 	output reg iscorrect,
-	output reg [7:0] current_guess);
-	
+	output reg [7:0] current_guess); // mirrors most recent guess if it was correct, else 0
+	 
 	always @(posedge clk) begin
 		if (!reset) begin
 			iscorrect <= 1'b0;
@@ -107,7 +107,7 @@ module DisplayBoard(
 	
 	always @(posedge clk)
 	begin
-		if (full_enable)
+		if (full_enable) // flash the solution board
 			board_led <= solution_board;
 		else begin
 			if (flash_enable) 
@@ -122,10 +122,10 @@ endmodule
 
 //TODO: Add other input/output as required
 module control(
-	input start,
+	input start, // assigned key1 
 	input reset,
 	input clk,
-	input is_correct,
+	input is_correct, // should come from datapath to this module through top level
 	input [7:0] input_guesses,
 	input board_moved, //I.E ({....} & 8'b11111111) == 1 ? 1'b1 : 1'b0 where .... is the button input
 	output ld_play, ld_start, ld_display, ld_flash); 
@@ -151,14 +151,14 @@ module control(
 					S_LOSE_WAIT    = 4'd9;
 	
 	RateDivider r0(
-	.q(wait_enable),
-	.load(26'd49999999),
-	.Enable(display_enable),
+	.q(wait_enable), // becomes 0 after 1 sec
+	.load(26'd49999999), 
+	.Enable(display_enable), 
 	.Clock(clk),
-	.reset_n(reset));
+	.reset_n(reset)); // assigned to key 0
 	
 	GuessRemaining g0(
-	.input_guesses(input_guesses),
+	.input_guesses(input_guesses), // number of guesses to start off with
 	.clk(clk),
 	.reset(reset),
 	.enable(!is_correct),
@@ -180,24 +180,50 @@ module control(
 				endcase
 	end
 	
+	// could maybe merge lose and win states, make transition an OR. (they provide the same signals)
 	//TODO: complete remaining enable signals for the states
 	always @(*)
 	begin: enable_signals
-		ld_start = 1'b0;
-		ld_display = 1'b0;
-		ld_play = 1'b0;
-		ld_flash = 1'b0;
+		ld_start = 1'b0; // resets the current_board
+		ld_display = 1'b0; // displays the full solution boardboard
+		ld_play = 1'b0;  // enable the datapath to update the board 
+		ld_flash = 1'b0; // flash enable (for the additional LED)
+		
+		
 		case(current_state)
 			S_START: begin
-				ld_start = 1'b1;
-				ld_flash = 1'b1;
+				ld_start = 1'b1; // initial reset 
+				ld_flash = 1'b1; // flash for a bit to indicate start
+			end
+
+			S_DISPLAY: begin
+				// interact with Display using Ratedivider in order to display
+				// for correct amount of time.
+				ld_start = 1'b0;
+				display_enable = 1'b1; // start the countdown for this state
+				ld_display = 1'b1; // show solution
+				ld_flash = 1'b0; // stop flashing
+						
 			end
 			
-			//ADD REMAINING SIGNALS FOR CASES
+			S_PLAY: begin 
+				ld_display = 1'b0; //  no longer display solution board
+				ld_play = 1'b1; // want to check guesses, update board
+						
+			end
+
+			S_WIN:begin // transition here upon solving
+				ld_play = 1'b0; // stop checking guesses, updating board
+				ld_flash = 1'b1; // flash to indicate end
+				//dont display solution board
+			end
 			
-			S_LOSE: begin
+			S_LOSE: begin // transition here among losing
 				//...Add remaining signals
+				// should we display solution upon loss? <-- activate both branches of Display somehow
+				ld_play = 1'0;
 				ld_flash = 1'b1;
+				
 			end
 		endcase
 	end
@@ -220,7 +246,8 @@ module datapath(
 	input reset,
 	input [7:0] solution_board,
 	input [7:0] input_guesses,
-	output reg [7:0] board_led);
+	output reg [7:0] board_led
+	output iscorrect); // need this to be connected to guess counter in fsm
 	
 	reg [7:0] current_board;
 	reg [7:0] current_guess; 
@@ -232,27 +259,27 @@ module datapath(
 	.board(current_board),
 	.enable(ld_play),
 	.reset(reset),
-	.iscorrect(iscorrect),
-	.current_guess(current_guess));
+	.iscorrect(iscorrect), // reflects whether current_guess is correct
+	.current_guess(current_guess)); // mirrors most recent guess if it was correct, else 0
 	
-	DisplayBoard d0(
+	DisplayBoard d0( // determine whether to display the solution board or the current board
 	.full_enable(ld_display),
 	.solution_board(solution_board),
-	.current_board(current_board),
+	.current_board(current_board), // goes from datapath into Displayboard where it could potentially be displayed
 	.board_led(board_led));
 	
 	always @(posedge clk) begin
 		if (!reset || ld_start)
 			current_board <= 0;
 		else begin
-			 if (ld_play)
-				board_led <= board_led || current_guess;
+			 if (ld_play) // if currently playing 
+				current_board <= board_led | current_guess; // updates board_led by adding correct guesses to it
 		end
 	end
 
 endmodule
-
-module MemoryMatrix( // augmented top-level module, for testing 
+/*
+module MemoryMatrixtest( // augmented top-level module, for testing 
 	input [9:0] SW,
 	input [3:0] KEY,
 	input CLOCK_50,
@@ -297,7 +324,7 @@ module MemoryMatrix( // augmented top-level module, for testing
 		);
 	
 endmodule
-
+*/
 module hex_decoder(hex_digit, segments); // for testing purposes.
     input [3:0] hex_digit;
     output reg [6:0] segments;
