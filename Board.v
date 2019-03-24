@@ -8,14 +8,14 @@ module Board(
 	
 	wire ld_board, non_zero;
 	
-	datapath d0(
+	boarddatapath d0(
 	.ld_board(ld_board),
 	.clk(clk),
 	.reset(reset),
 	.non_zero(non_zero),
 	.board(board));
 	
-	control c0(
+	boardcontrol c0(
 	.start(start),
 	.reset(reset),
 	.clk(clk),
@@ -41,7 +41,7 @@ module BoardGenerator(
 	
 endmodule
 
-module control(
+module boardcontrol(
 	input start,
 	input reset,
 	input clk,
@@ -51,10 +51,11 @@ module control(
 	reg [1:0] current_state, next_state;
 	
 	
-	localparam  S_GENERATE               = 2'd0,
-				   S_GENERATE_WAIT          = 2'd1,
-					S_GENERATE_CORRECT_BOARD = 2'd2,
-					S_PLAY                   = 2'd3;
+	localparam  S_GENERATE               = 3'd0,
+				   S_GENERATE_WAIT          = 3'd1,
+					S_GENERATE_CORRECT_BOARD = 3'd2,
+					S_PLAY                   = 3'd3,
+					S_PLAY_WAIT              = 3'd4;
 	
 	always @(*)
 	begin: state_table
@@ -62,7 +63,8 @@ module control(
 					S_GENERATE: next_state = start ? S_GENERATE_WAIT : S_GENERATE;
 					S_GENERATE_WAIT: next_state = start ? S_GENERATE_WAIT : S_GENERATE_CORRECT_BOARD;
 					S_GENERATE_CORRECT_BOARD: next_state = non_zero ? S_PLAY : S_GENERATE_CORRECT_BOARD;
-					S_PLAY: next_state = S_PLAY;
+					S_PLAY: next_state = start ? S_PLAY_WAIT: S_PLAY;
+					S_PLAY_WAIT: next_state = start ? S_PLAY_WAIT: S_GENERATE;
 					default: next_state = S_GENERATE;
 				endcase
 	end
@@ -87,7 +89,7 @@ module control(
 	
 endmodule
 
-module datapath(
+module boarddatapath(
 	input ld_board,
 	input clk,
 	input reset,
