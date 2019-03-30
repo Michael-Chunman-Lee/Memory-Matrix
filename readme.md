@@ -3,14 +3,13 @@
 
 <img src="pics/mem.jpg">
 
-##### Michael Lee, Victor Trinh
+#### Michael Lee, Victor Trinh <br>
 
-https://github.com/Michael-Chunman-Lee/Memory-Matrix
+https://github.com/Michael-Chunman-Lee/Memory-Matrix <br>
 
 ## Description
 Memory-Matrix is an implementation of a memory-based game. The gameplay is as
 follows;
-
 1. The player presses key_3 to increment the number of allowed mistakes. The
 number of remaining mistakes is shown on the HEX Displays. This gameplay state
 is indicated by a flashing LED.
