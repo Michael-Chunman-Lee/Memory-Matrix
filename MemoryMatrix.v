@@ -1,29 +1,45 @@
 //TODO: Determine which pins are to be used for the GPIO inputs
+//TODO: if all goes wrong use KEY[3] to increment guesses and switches as guess input 
 
 // Main module for the memory matrix game
 module MemoryMatrix(
-	input [9:0] SW, // Number of Guesses
+	input [9:0] SW, // Input guesses
 	input [3:0] KEY,
 	input CLOCK_50,
 	output [6:0] HEX0, //Displays remaining guesses
-	output [9:0] LEDR);//Display current board before the buttons are set up
+	output [13:0] LEDR,
+	output [16:0] GPIO_1,
+	output [6:0] HEX1,
+	output [6:0] HEX2);//Display current board before the buttons are set up
 	
-	wire reset, start;
+	wire reset, start, give_up, increment;
 	assign reset = KEY[0];
 	assign start = ~KEY[1];
+	assign give_up = ~KEY[2]; 
+	assign increment = ~KEY[3];
 	
 	wire [7:0] board; 
 	
+	//Wire to check if a certain guess is correct
 	wire is_correct;
+	
+	//Check if the board has moved or not
+	wire board_moved;
+	assign board_moved = ((SW[7:0] & 8'b11111111)) > 0 ? 1'b1 : 1'b0; // Change all 0 bits to their respective values
 	
 	Board b0(
 	.start(start),
 	.reset(reset),
 	.clk(CLOCK_50),
 	.board(board)); // solution board
-		
+	
+	//The control signals
 	wire ld_play, ld_start, ld_display, ld_flash, is_solved;
-	wire [7:0] num_guesses;
+	//Maximum 15 guesses 
+	wire [3:0] num_guesses;
+	//Temporary wires for debugging
+	wire [3:0] state_number;
+	wire [3:0] next_number;
 	
 	control c0(
 	.start(start),
@@ -31,13 +47,18 @@ module MemoryMatrix(
 	.clk(CLOCK_50),
 	.is_correct(is_correct),
 	.is_solved(is_solved),
-	.input_guesses(SW[7:0]), // Number of guesses
-	.board_moved(((SW[7:0] & 8'b11111111) > 0) ? 1'b1 : 1'b0), // board_moved listener
+	.board_moved(board_moved),	//.board_moved(((SW[7:0] & 8'b11111111) > 0) ? 1'b1 : 1'b0), // board_moved listener
 	.ld_play(ld_play),
 	.ld_start(ld_start),
 	.ld_display(ld_display),
 	.ld_flash(ld_flash),
-	.num_guesses(num_guesses));
+	.increment(increment),
+	.num_guesses(num_guesses),
+	.give_up(give_up),
+	//Temporary wires for debugging
+	.state_number(state_number),
+	.next_number(next_number),
+	.is_moved(LEDR[13]));
 	
 	datapath d0(
 	.ld_display(ld_display),
@@ -47,8 +68,8 @@ module MemoryMatrix(
 	.flash_enable(ld_flash),
 	.reset(reset),
 	.solution_board(board), // solution board
-	.input_guesses(SW[7:0]), // to be changed later to be the actual button inputs
-	.board_led(LEDR[8:0]), 
+   .input_guesses({SW[7:0]}),//.input_guesses(SW[7:0]), // to be changed later to be the actual button inputs
+	.board_led({GPIO_1[16], GPIO_1[0], GPIO_1[2], GPIO_1[4], GPIO_1[6], GPIO_1[8], GPIO_1[10], GPIO_1[12], GPIO_1[14]}), //LEDR[8:0]), 
 	.iscorrect(is_correct),
 	.is_solved(is_solved));
 	
@@ -57,26 +78,45 @@ module MemoryMatrix(
 	.hex_digit(num_guesses[3:0]),
 	.segments(HEX0[6:0]));
 	
+	//Below code is all for debugging purposes
+	hex_decoder h1(
+	.hex_digit(state_number[3:0]),
+	.segments(HEX1[6:0]));
+	
+	hex_decoder h2(
+	.hex_digit(next_number[3:0]),
+	.segments(HEX2[6:0]));
+	assign LEDR[9] = is_correct;
+	assign LEDR[10] = ld_play;
+	assign LEDR[11] = board_moved;
+	assign LEDR[12] = SW[3];
 endmodule
 	
 // Module for keeping track of a remaining_guesses register and updating it as the player guesses
 module GuessRemaining(
-	input [7:0] input_guesses,
 	input ld_guess,
 	input clk,
 	input reset,
 	input not_correct,
 	input enable,
-	output reg [7:0] remaining_guesses);	
+	input start,
+	input increment,
+	output reg [3:0] remaining_guesses);	
 	
 	always @(posedge clk) begin
-		if (!reset)
-			remaining_guesses <= 8'd0;
-		else if (ld_guess) 
-			remaining_guesses <= input_guesses;
-		else begin
-			if (enable && not_correct) 
-				remaining_guesses <= remaining_guesses - 1;
+		if (!reset || start) //If reset was pressed or the game is in the start state reset the number of guesses to 0
+			remaining_guesses <= 4'd0;
+		else if (ld_guess) begin //In the load state, on each increment signal, increment the guesses by 1
+			if (increment)
+				remaining_guesses <= remaining_guesses + 1;
+		end
+		else begin //Process the remaining guesses depending on if the guess is correct or not
+			if (enable && not_correct) begin
+				if (remaining_guesses == 0)
+					remaining_guesses <= 0;
+				else
+					remaining_guesses <= remaining_guesses - 1;
+			end
 		end
 	end
 	
@@ -84,7 +124,7 @@ endmodule
 
 //Module for checking if an inputted guess was valid or not
 module CheckGuess(
-	input [7:0] guess,
+	input [7:0] guess, //The current guess
 	input [7:0] board, //The solution board
 	input enable,
 	input reset,
@@ -158,8 +198,12 @@ module DisplayBoard(
 	
 	always @(posedge clk)
 	begin
-		if (full_enable) // flash the solution board
-			board_led <= solution_board;
+		if (full_enable) begin // flash the solution board
+			if (flash_enable) 
+				board_led <= {flash_on_off, solution_board};
+			else 
+				board_led <= {1'b0, solution_board};
+		end
 		else begin
 			if (flash_enable) 
 				//Currently will flash board_led[8] for when we add the extra led
@@ -176,32 +220,42 @@ module control(
 	input reset,
 	input clk,
 	input is_correct, 
-	input [7:0] input_guesses, //The number of guesses
 	input is_solved,
 	input board_moved, 
-	output reg ld_play, ld_start, ld_display, ld_flash, ld_guess,
-	output [7:0] num_guesses); 
+	input increment,
+	input give_up,
+	output reg ld_play, ld_start, ld_display, ld_flash,
+	output reg check_return,
+	//Below output is all for debugging
+	output wire [3:0] state_number,
+	output [3:0] num_guesses,
+	output wire [3:0] next_number,
+	output wire is_moved); 
 	
 	reg [3:0] current_state, next_state;
 	
 	wire [25:0] wait_enable;
 	reg display_enable;
-	//TODO: determine maximum number of guesses
 	//Enables the guess counter
 	reg enable_check;
+	//Loads the remaining number of guesses
+	reg ld_guess;
 	
 	localparam  S_START        = 4'd0,
 					S_START_WAIT   = 4'd1,
-					S_DISPLAY      = 4'd2,
-					S_PLAY         = 4'd3,
-					S_CHECK        = 4'd4, 
-					S_CHECK_LOSE   = 4'd5,
-					S_CHECK_WIN    = 4'd6,
-					S_LOSE         = 4'd7,
-					S_WIN          = 4'd8,
-					S_WIN_WAIT     = 4'd9,
-					S_LOSE_WAIT    = 4'd10,
-					S_RETURN_WAIT  = 4'd11;
+					S_LOAD         = 4'd2,
+					S_LOAD_WAIT    = 4'd3,
+					S_BEGIN_WAIT   = 4'd4,
+					S_DISPLAY      = 4'd5,
+					S_PLAY         = 4'd6,
+					S_CHECK        = 4'd7, 
+					S_CHECK_LOSE   = 4'd8,
+					S_CHECK_WIN    = 4'd9,
+					S_LOSE         = 4'd10,
+					S_WIN          = 4'd11,
+					S_WIN_WAIT     = 4'd12,
+					S_LOSE_WAIT    = 4'd13,
+					S_RETURN_WAIT  = 4'd14;
 	
 	//1 Hz rate divider
 	RateDivider r0(
@@ -211,12 +265,14 @@ module control(
 	.Clock(clk),
 	.reset_n(reset)); 
 	
+	//Keep track of the remaining number of guesses
 	GuessRemaining g0(
-	.input_guesses(input_guesses),	
 	.clk(clk),
 	.ld_guess(ld_guess),
 	.reset(reset),
 	.enable(enable_check),
+	.start(ld_start),
+	.increment(increment),
 	.not_correct(!is_correct),
 	.remaining_guesses(num_guesses));
 	
@@ -224,22 +280,33 @@ module control(
 	begin: state_table
 				case(current_state)
 					//Make sure the player inputs a non-zero guess before moving to the play state
-					S_START: next_state = (start && (input_guesses > 0)) ? S_START_WAIT : S_START;
-					S_START_WAIT: next_state = start ? S_START_WAIT : S_DISPLAY;
+					S_START: next_state = start ? S_START_WAIT : S_START;
+					S_START_WAIT: next_state = start ? S_START_WAIT : S_LOAD;
+					S_LOAD: begin 
+						if (increment)
+							next_state = S_LOAD_WAIT;
+						else if (start && (num_guesses > 0))
+							next_state = S_BEGIN_WAIT;
+						else
+							next_state = S_LOAD;
+					end
+					S_LOAD_WAIT: next_state = increment ? S_LOAD_WAIT: S_LOAD;
+					S_BEGIN_WAIT: next_state = start ? S_BEGIN_WAIT : S_DISPLAY;
 					S_DISPLAY: next_state = (wait_enable == 0) ? S_PLAY : S_DISPLAY;
+					//Current bug: will get stuck on S_PLAY suspect its either the guessesremaining or board_moved
 					S_PLAY: next_state = (board_moved == 1) ? S_CHECK : S_PLAY;
 					S_CHECK: next_state = S_CHECK_LOSE;
 					S_CHECK_LOSE: next_state = (num_guesses == 0) ? S_LOSE : S_CHECK_WIN;
 					S_CHECK_WIN: next_state = (is_solved == 1) ? S_WIN : S_RETURN_WAIT;
 					S_LOSE: next_state = start ? S_LOSE_WAIT : S_LOSE;
 					S_LOSE_WAIT: next_state = start ? S_LOSE_WAIT : S_START;
+					//TODO: just have S_WIN go straight to the S_PLAY state as there is no point in having the user pressing start again
 					S_WIN: next_state = start ? S_WIN_WAIT : S_WIN;
 					S_WIN_WAIT: next_state = start ? S_WIN_WAIT : S_START;
 					S_RETURN_WAIT: next_state = (board_moved == 0) ? S_PLAY : S_RETURN_WAIT;
 				endcase
 	end
 	
-	// could maybe merge lose and win states, make transition an OR. <-- different leds for win/lose
 	always @(*)
 	begin: enable_signals
 		ld_start = 1'b0; // resets the current_board
@@ -247,16 +314,19 @@ module control(
 		ld_play = 1'b0;  // enable the datapath to update the board 
 		ld_flash = 1'b0; // flash enable (for the additional LED)
 		ld_guess = 1'b0; //Load the number of guesses
-		enable_check = 1'b0;
-		display_enable = 1'b0;
+		enable_check = 1'b0; //Enable the guessesremaining register to possibly decrement the number of guesses
+		display_enable = 1'b0; //Enable the full board display
 		
 		case(current_state)
 			S_START: begin
 				ld_start = 1'b1; // initial reset 
 				ld_flash = 1'b1; // flash for a bit to indicate start
-				ld_guess = 1'b1;
 			end
-
+			
+			S_LOAD: begin
+				ld_guess = 1'b1; //Load the guesses
+			end
+			
 			S_DISPLAY: begin
 				// interact with Display using Ratedivider in order to display
 				// for correct amount of time.
@@ -274,13 +344,13 @@ module control(
 			
 			S_WIN:begin // transition here upon solving
 				ld_flash = 1'b1; // flash to indicate end
-				//dont display solution board
 			end
 			
 			S_LOSE: begin // transition here among losing
 				ld_flash = 1'b1;
-				
+				ld_display = 1'b1; //Display the full solution board
 			end
+			
 			default: begin
 				ld_start = 1'b0; // resets the current_board
 				ld_display = 1'b0; // displays the full solution boardboard
@@ -295,14 +365,20 @@ module control(
 	
 	always @(posedge clk)
 	begin: state_FFs
-		// Possibly since reset is also give up if reset is hit in any state other than lose, start, and lose_wait go to lose state instead
-		//of start
-		if (!reset)
+		if (!reset) 
 			current_state <= S_START;
+		else if (give_up) begin
+			if (current_state == S_PLAY)
+				current_state <= S_LOSE;
+		end
 		else
 			current_state <= next_state;
 	end
-
+	
+	//Code below is for debuggin
+	assign state_number = current_state;
+	assign next_number = next_state;
+	assign is_moved = board_moved;
 endmodule
 
 module datapath(
@@ -321,7 +397,7 @@ module datapath(
 	
 	reg [7:0] current_board;
 	wire [7:0] current_guess; 
-	
+	 
 	CheckGuess c0(
 	.guess(input_guesses),
 	.board(solution_board),
