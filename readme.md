@@ -4,10 +4,6 @@
 https://github.com/Michael-Chunman-Lee/Memory-Matrix
 <img src="pics/mem.jpg">
 
-## Contents
-1. High-Level Description
-2. Materials
-3. Block Diagram
 
 ## Description
 Memory-Matrix is an implementation of a memory-based game. The gameplay is as
