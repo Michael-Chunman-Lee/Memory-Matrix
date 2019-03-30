@@ -2,8 +2,11 @@
 # __Project Report: Memory-Matrix__
 
 <img src="pics/mem.jpg">
-###### Michael Lee, Victor Trinh
+
+##### Michael Lee, Victor Trinh
+
 https://github.com/Michael-Chunman-Lee/Memory-Matrix
+
 ## Description
 Memory-Matrix is an implementation of a memory-based game. The gameplay is as
 follows;
