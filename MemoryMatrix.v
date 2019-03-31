@@ -32,7 +32,7 @@ module MemoryMatrix(
 	wire ld_play, ld_start, ld_display, ld_flash, is_solved;
 	//Maximum 15 guesses 
 	wire [3:0] num_guesses;
-	
+
 	control c0(
 	.start(start),
 	.reset(reset),
@@ -57,7 +57,7 @@ module MemoryMatrix(
 	.flash_enable(ld_flash),
 	.reset(reset),
 	.solution_board(board), // solution board
-   .input_guesses({SW[7:0]}),
+   .input_guesses(SW[7:0]),
 	.board_led({GPIO_1[16], GPIO_1[0], GPIO_1[2], GPIO_1[4], GPIO_1[6], GPIO_1[8], GPIO_1[10], GPIO_1[12], GPIO_1[14]}), 
 	.iscorrect(is_correct),
 	.is_solved(is_solved));
@@ -154,7 +154,7 @@ module DisplayBoard(
 	input [7:0] current_board,
 	output reg [8:0] board_led);
 	
-	wire [26:0] flash_counter;
+	wire [25:0] flash_counter;
 	
 	//4 Hz rate divider
 	RateDivider r0(
@@ -240,8 +240,8 @@ module control(
 	.load(26'd49999999), 
 	.Enable(display_enable), 
 	.Clock(clk),
-	.reset_n(reset));
-
+	.reset_n(reset));	
+	
 	//Keep track of the remaining number of guesses
 	GuessRemaining g0(
 	.clk(clk),
@@ -319,7 +319,7 @@ module control(
 				enable_check = 1'b1;
 			end
 			
-			S_WIN:begin // transition here upon solving
+			S_WIN: begin // transition here upon solving
 				ld_flash = 1'b1; // flash to indicate end
 				ld_display = 1'b1; 
 			end
