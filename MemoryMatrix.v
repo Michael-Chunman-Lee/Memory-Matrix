@@ -324,7 +324,7 @@ module control(
 				ld_display = 1'b1; 
 			end
 			
-			S_LOSE: begin // transition here among losing
+			S_LOSE: begin // transition here upon losing
 				ld_flash = 1'b1;
 				ld_display = 1'b1; //Display the full solution board
 			end
