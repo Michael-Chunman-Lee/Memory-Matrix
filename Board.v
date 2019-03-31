@@ -51,20 +51,16 @@ module boardcontrol(
 	reg [1:0] current_state, next_state;
 	
 	
-	localparam  S_GENERATE               = 3'd0,
-				   S_GENERATE_WAIT          = 3'd1,
-					S_GENERATE_CORRECT_BOARD = 3'd2,
-					S_PLAY                   = 3'd3,
-					S_PLAY_WAIT              = 3'd4;
+	localparam  S_GENERATE               = 2'd0,
+					S_GENERATE_CORRECT_BOARD = 2'd1,
+					S_PLAY                   = 2'd2;
 	
 	always @(*)
 	begin: state_table
 				case(current_state)
-					S_GENERATE: next_state = start ? S_GENERATE_WAIT : S_GENERATE;
-					S_GENERATE_WAIT: next_state = start ? S_GENERATE_WAIT : S_GENERATE_CORRECT_BOARD;
+					S_GENERATE: next_state = !start ? S_GENERATE_CORRECT_BOARD : S_GENERATE;
 					S_GENERATE_CORRECT_BOARD: next_state = non_zero ? S_PLAY : S_GENERATE_CORRECT_BOARD;
-					S_PLAY: next_state = start ? S_PLAY_WAIT: S_PLAY;
-					S_PLAY_WAIT: next_state = start ? S_PLAY_WAIT: S_GENERATE;
+					S_PLAY: next_state = start ? S_GENERATE: S_PLAY;
 					default: next_state = S_GENERATE;
 				endcase
 	end
@@ -75,6 +71,7 @@ module boardcontrol(
 		
 		case (current_state)
 			S_GENERATE: ld_board = 1'b1;
+			S_GENERATE_CORRECT_BOARD: ld_board = 1'b1;
 			default: ld_board = 1'b0;
 		endcase
 	end
