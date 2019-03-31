@@ -37,3 +37,6 @@ indicated by the same flashing LED as in (1). To play again, key_1 may be presse
 
 ## Block Diagram
 <img src="pics/block_diagram.png">
+
+## Control Diagram/FSM
+<img src="pics/fsm.png">
