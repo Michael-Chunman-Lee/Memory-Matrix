@@ -35,8 +35,14 @@ indicated by the same flashing LED as in (1). To play again, KEY[1] may be press
   * https://www.creatroninc.com/product/3-m-f-jumper-wire-10-pack/?search_query=jumper+wires&results=55   
   * Alternatively, a 2xn header cable may be used.
 
-## Block Diagram
+## Top Level Block Diagram
 <img src="pics/block_diagram.png">
 
-## Control Diagram/FSM
+## Top Level FSM
 <img src="pics/fsm.png">
+
+## Board's Block Diagram
+<img src="pics/board_block_diagram.png">
+
+## Board's FSM
+<img src="pics/board_fsm.png">
