@@ -77,7 +77,6 @@ module GuessRemaining(
 	input not_correct,
 	input enable,
 	input start,
-	input increment,
 	output reg [3:0] remaining_guesses);	
 	
 	always @(posedge clk) begin
@@ -85,8 +84,7 @@ module GuessRemaining(
 			//If reset was pressed or the game is in the start state reset the number of guesses to 0
 			remaining_guesses <= 4'd0;
 		else if (ld_guess) begin 
-			//In the load state, on each increment signal, increment the guesses by 1
-			//if (increment)
+			//In the increment state, on each ld_guess signal, increment the guesses by 1
 				remaining_guesses <= remaining_guesses + 1;
 		end
 		else begin 
@@ -251,7 +249,6 @@ module control(
 	.reset(reset),
 	.enable(enable_check),
 	.start(ld_start),
-	.increment(increment),
 	.not_correct(!is_correct),
 	.remaining_guesses(num_guesses));
 	
@@ -320,7 +317,7 @@ module control(
 				ld_flash = 1'b1; // flash for a bit to indicate start
 			end
 			
-			S_INCREMENT: begin //S_LOAD: begin
+			S_INCREMENT: begin 
 				ld_guess = 1'b1; //Load the guesses
 			end
 			
