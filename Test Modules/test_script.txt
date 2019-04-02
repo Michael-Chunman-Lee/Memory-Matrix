@@ -1,0 +1,33 @@
+add wave {/*}
+log {/*}
+
+force {CLOCK_50} 1 0, 0 1 -repeat 2
+run 30ns
+force {reset} 0 
+run 5ns
+force {reset} 1
+force {start} 1
+run 5ns
+run 5ns
+force {start} 0
+run 5ns
+force {increment} 1 
+run 5ns
+force {increment} 0
+run 5ns
+force {increment} 1 
+run 5ns
+force {increment} 0
+run 5ns
+
+force {start} 0
+run 5ns
+force {start} 1
+run 5ns
+run 5ns
+force {start} 0
+run 5ns
+force {start} 1
+run 5ns
+force {start} 0 
+run 5ns
