@@ -1,5 +1,5 @@
 
-# __Project Report: Memory-Matrix__
+# __Memory-Matrix__
 
 <img src="pics/mem.jpg">
 
